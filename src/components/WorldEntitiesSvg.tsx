@@ -669,24 +669,24 @@ export const BaseCompoundSvg: React.FC<BaseCompoundSvgProps> = React.memo(
   ({ baseStage, turretAngleDeg, playerInSafeZone }) => {
     const stageDef = BASE_STAGES[baseStage] || BASE_STAGES[0];
     const safeR = stageDef.safeRadius;
-    const boxSize = 520;
+    const boxSize = 760;
     const cx = boxSize / 2;
     const cy = boxSize / 2;
 
     const turretPositions =
       baseStage === 1
-        ? [[0, -28]]
+        ? [[0, -34]]
         : baseStage === 2
         ? [
-            [-84, -84],
-            [84, 84],
+            [-115, -115],
+            [115, 115],
           ]
         : baseStage === 3
         ? [
-            [-115, -115],
-            [115, -115],
-            [-115, 115],
-            [115, 115],
+            [-155, -155],
+            [155, -155],
+            [-155, 155],
+            [155, 155],
           ]
         : [];
 

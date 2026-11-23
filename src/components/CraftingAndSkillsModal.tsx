@@ -75,8 +75,8 @@ export const CraftingAndSkillsModal: React.FC<CraftingAndSkillsModalProps> = ({
   const nextBaseStageDef =
     baseStage < 3 ? BASE_STAGES[(baseStage + 1) as BaseStageId] : null;
   const currentBaseDef = BASE_STAGES[baseStage];
-  const turretUpgradeCostCash = 140 + turretUpgradeLevel * 95;
-  const turretUpgradeCostScrap = 18 + turretUpgradeLevel * 12;
+  const turretUpgradeCostCash = 320 + turretUpgradeLevel * 220;
+  const turretUpgradeCostScrap = 40 + turretUpgradeLevel * 28;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -352,7 +352,7 @@ export const CraftingAndSkillsModal: React.FC<CraftingAndSkillsModalProps> = ({
                 {SKILL_DEFS.map((sk) => {
                   const currLvl = skills[sk.key] || 0;
                   const isMax = currLvl >= sk.maxLevel;
-                  const cost = Math.round(sk.baseCost * Math.pow(1.38, currLvl));
+                  const cost = Math.round(sk.baseCost * Math.pow(1.48, currLvl));
                   const canBuy = !isMax && cash >= cost;
                   const pct = Math.min(
                     100,

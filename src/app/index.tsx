@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   Dimensions,
   Image,
   PanResponder,
@@ -55,55 +56,49 @@ import { loadSavedGame, persistSaveGame } from '../utils/storage';
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const MAP_ART_SOURCE = require('../../assets/map-outpost.jpg');
 
-// Courtyard Wall & Forest Collision Constants matching assets/map-outpost.jpg (1600x1600)
-const WALL_INNER_R = 312;
-const WALL_OUTER_R = 428;
+// Courtyard Wall & Forest Collision Constants scaled for expansive 2800x2800 illustrated map (1.75x scale)
+const WALL_INNER_R = 546;
+const WALL_OUTER_R = 749;
 const WALL_MID_R = (WALL_INNER_R + WALL_OUTER_R) / 2;
-const GATE_HALF_WIDTH = 94;
-const ROAD_HALF_WIDTH = 122;
-const FOREST_RING_R = 515;
+const GATE_HALF_WIDTH = 165;
+const ROAD_HALF_WIDTH = 214;
+const FOREST_RING_R = 901;
 
-// Specific Tree, Rock & Prop Circular Colliders matching the painted map
+// Specific Tree, Rock & Prop Circular Colliders scaled to 2800x2800 painted map
 const TREE_AND_ROCK_COLLIDERS: { x: number; y: number; r: number }[] = [
   // North-West Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X - 380, y: BASE_CENTER_Y - 375, r: 62 },
-  { x: BASE_CENTER_X - 515, y: BASE_CENTER_Y - 235, r: 74 },
-  { x: BASE_CENTER_X - 235, y: BASE_CENTER_Y - 515, r: 70 },
-  { x: BASE_CENTER_X - 560, y: BASE_CENTER_Y - 520, r: 110 },
-  { x: BASE_CENTER_X - 660, y: BASE_CENTER_Y - 340, r: 85 },
-  { x: BASE_CENTER_X - 340, y: BASE_CENTER_Y - 660, r: 85 },
+  { x: BASE_CENTER_X - 665, y: BASE_CENTER_Y - 656, r: 108 },
+  { x: BASE_CENTER_X - 901, y: BASE_CENTER_Y - 411, r: 129 },
+  { x: BASE_CENTER_X - 411, y: BASE_CENTER_Y - 901, r: 122 },
+  { x: BASE_CENTER_X - 980, y: BASE_CENTER_Y - 910, r: 192 },
+  { x: BASE_CENTER_X - 1155, y: BASE_CENTER_Y - 595, r: 148 },
+  { x: BASE_CENTER_X - 595, y: BASE_CENTER_Y - 1155, r: 148 },
 
   // North-East Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X + 380, y: BASE_CENTER_Y - 375, r: 62 },
-  { x: BASE_CENTER_X + 515, y: BASE_CENTER_Y - 235, r: 74 },
-  { x: BASE_CENTER_X + 235, y: BASE_CENTER_Y - 515, r: 70 },
-  { x: BASE_CENTER_X + 560, y: BASE_CENTER_Y - 520, r: 110 },
-  { x: BASE_CENTER_X + 660, y: BASE_CENTER_Y - 340, r: 85 },
-  { x: BASE_CENTER_X + 340, y: BASE_CENTER_Y - 660, r: 85 },
+  { x: BASE_CENTER_X + 665, y: BASE_CENTER_Y - 656, r: 108 },
+  { x: BASE_CENTER_X + 901, y: BASE_CENTER_Y - 411, r: 129 },
+  { x: BASE_CENTER_X + 411, y: BASE_CENTER_Y - 901, r: 122 },
+  { x: BASE_CENTER_X + 980, y: BASE_CENTER_Y - 910, r: 192 },
+  { x: BASE_CENTER_X + 1155, y: BASE_CENTER_Y - 595, r: 148 },
+  { x: BASE_CENTER_X + 595, y: BASE_CENTER_Y - 1155, r: 148 },
 
   // South-West Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X - 380, y: BASE_CENTER_Y + 375, r: 62 },
-  { x: BASE_CENTER_X - 515, y: BASE_CENTER_Y + 235, r: 74 },
-  { x: BASE_CENTER_X - 235, y: BASE_CENTER_Y + 515, r: 70 },
-  { x: BASE_CENTER_X - 560, y: BASE_CENTER_Y + 520, r: 110 },
-  { x: BASE_CENTER_X - 660, y: BASE_CENTER_Y + 340, r: 85 },
-  { x: BASE_CENTER_X - 340, y: BASE_CENTER_Y + 660, r: 85 },
+  { x: BASE_CENTER_X - 665, y: BASE_CENTER_Y + 656, r: 108 },
+  { x: BASE_CENTER_X - 901, y: BASE_CENTER_Y + 411, r: 129 },
+  { x: BASE_CENTER_X - 411, y: BASE_CENTER_Y + 901, r: 122 },
+  { x: BASE_CENTER_X - 980, y: BASE_CENTER_Y + 910, r: 192 },
+  { x: BASE_CENTER_X - 1155, y: BASE_CENTER_Y + 595, r: 148 },
+  { x: BASE_CENTER_X - 595, y: BASE_CENTER_Y + 1155, r: 148 },
 
   // South-East Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X + 380, y: BASE_CENTER_Y + 375, r: 62 },
-  { x: BASE_CENTER_X + 515, y: BASE_CENTER_Y + 235, r: 74 },
-  { x: BASE_CENTER_X + 235, y: BASE_CENTER_Y + 515, r: 70 },
-  { x: BASE_CENTER_X + 560, y: BASE_CENTER_Y + 520, r: 110 },
-  { x: BASE_CENTER_X + 660, y: BASE_CENTER_Y + 340, r: 85 },
-  { x: BASE_CENTER_X + 340, y: BASE_CENTER_Y + 660, r: 85 },
+  { x: BASE_CENTER_X + 665, y: BASE_CENTER_Y + 656, r: 108 },
+  { x: BASE_CENTER_X + 901, y: BASE_CENTER_Y + 411, r: 129 },
+  { x: BASE_CENTER_X + 411, y: BASE_CENTER_Y + 901, r: 122 },
+  { x: BASE_CENTER_X + 980, y: BASE_CENTER_Y + 910, r: 192 },
+  { x: BASE_CENTER_X + 1155, y: BASE_CENTER_Y + 595, r: 148 },
+  { x: BASE_CENTER_X + 595, y: BASE_CENTER_Y + 1155, r: 148 },
 ];
 
-/**
- * Resolves physical collision against:
- * 1. The circular stone/sandbag walls around the Polygon courtyard (except the 4 open Gates).
- * 2. The Watchtower / Military Village buildings inside the courtyard.
- * 3. The outer forest tree line and individual trees/boulders.
- */
 function resolveMapCollision(
   prevX: number,
   prevY: number,
@@ -112,8 +107,8 @@ function resolveMapCollision(
   entityRadius: number,
   baseStage: BaseStageId
 ): { x: number; y: number } {
-  let x = Math.max(55, Math.min(MAP_SIZE - 55, targetX));
-  let y = Math.max(55, Math.min(MAP_SIZE - 55, targetY));
+  let x = Math.max(70, Math.min(MAP_SIZE - 70, targetX));
+  let y = Math.max(70, Math.min(MAP_SIZE - 70, targetY));
 
   const dx = x - BASE_CENTER_X;
   const dy = y - BASE_CENTER_Y;
@@ -132,7 +127,6 @@ function resolveMapCollision(
   const maxWallR = WALL_OUTER_R + entityRadius;
 
   if (!inAnyGate && dist > minWallR && dist < maxWallR) {
-    // Check if we were previously inside a gate opening and hit the side pillar of the gate
     const wasInNSGate = Math.abs(prevDx) < GATE_HALF_WIDTH - entityRadius * 0.4;
     const wasInEWGate = Math.abs(prevDy) < GATE_HALF_WIDTH - entityRadius * 0.4;
 
@@ -145,19 +139,17 @@ function resolveMapCollision(
         Math.sign(dy) * (GATE_HALF_WIDTH - entityRadius * 0.45);
       y = BASE_CENTER_Y + clampedDy;
     } else if (prevDist <= WALL_MID_R) {
-      // Push back inside courtyard along the curved inner wall
       const scale = minWallR / dist;
       x = BASE_CENTER_X + dx * scale;
       y = BASE_CENTER_Y + dy * scale;
     } else {
-      // Push back outside courtyard along the curved outer wall
       const scale = maxWallR / dist;
       x = BASE_CENTER_X + dx * scale;
       y = BASE_CENTER_Y + dy * scale;
     }
   }
 
-  // 2. Outer Forest Tree Line (Blocks walking deep into the 4 forest corners off-road)
+  // 2. Outer Forest Tree Line
   const currDx = x - BASE_CENTER_X;
   const currDy = y - BASE_CENTER_Y;
   const currDist = Math.hypot(currDx, currDy) || 0.001;
@@ -165,7 +157,6 @@ function resolveMapCollision(
     Math.abs(currDx) < ROAD_HALF_WIDTH || Math.abs(currDy) < ROAD_HALF_WIDTH;
 
   if (!onCobblestoneRoad && currDist > FOREST_RING_R - entityRadius) {
-    // If player was on a road and tried to step sideways into the deep forest, clamp to road edge
     if (Math.abs(prevDx) < ROAD_HALF_WIDTH) {
       x = BASE_CENTER_X + Math.sign(currDx) * (ROAD_HALF_WIDTH - 2);
     } else if (Math.abs(prevDy) < ROAD_HALF_WIDTH) {
@@ -194,7 +185,7 @@ function resolveMapCollision(
     const tdx = x - BASE_CENTER_X;
     const tdy = y - BASE_CENTER_Y;
     const tDist = Math.hypot(tdx, tdy) || 0.001;
-    const towerBaseR = 24 + entityRadius;
+    const towerBaseR = 26 + entityRadius;
     if (tDist < towerBaseR) {
       x = BASE_CENTER_X + (tdx / tDist) * towerBaseR;
       y = BASE_CENTER_Y + (tdy / tDist) * towerBaseR;
@@ -202,10 +193,9 @@ function resolveMapCollision(
   }
 
   if (baseStage >= 3) {
-    // Left Garrison & Right Armory solid building colliders
     const buildings = [
-      { x: BASE_CENTER_X - 82, y: BASE_CENTER_Y, r: 30 },
-      { x: BASE_CENTER_X + 82, y: BASE_CENTER_Y, r: 30 },
+      { x: BASE_CENTER_X - 82, y: BASE_CENTER_Y, r: 32 },
+      { x: BASE_CENTER_X + 82, y: BASE_CENTER_Y, r: 32 },
     ];
     for (const b of buildings) {
       const bdx = x - b.x;
@@ -226,7 +216,7 @@ function isBulletBlockedByWall(bx: number, by: number): boolean {
   const dx = bx - BASE_CENTER_X;
   const dy = by - BASE_CENTER_Y;
   const dist = Math.hypot(dx, dy);
-  if (dist > WALL_INNER_R + 6 && dist < WALL_OUTER_R - 6) {
+  if (dist > WALL_INNER_R + 10 && dist < WALL_OUTER_R - 10) {
     const inGate =
       Math.abs(dx) < GATE_HALF_WIDTH || Math.abs(dy) < GATE_HALF_WIDTH;
     if (!inGate) return true;
@@ -239,71 +229,67 @@ function randomBetween(min: number, max: number): number {
 }
 
 function createZombieForWave(wave: number, index: number): ZombieEntity {
-  // Spawn zombies along the 4 cobblestone roads and outer lawn approaches
   const gateIndex = index % 4;
   let x = BASE_CENTER_X;
   let y = BASE_CENTER_Y;
-  const roadDist = randomBetween(475, 720);
-  const roadJitter = randomBetween(-75, 75);
+  const roadDist = randomBetween(820, 1260);
+  const roadJitter = randomBetween(-125, 125);
 
   if (gateIndex === 0) {
-    // North Road
     x = BASE_CENTER_X + roadJitter;
     y = BASE_CENTER_Y - roadDist;
   } else if (gateIndex === 1) {
-    // South Road
     x = BASE_CENTER_X + roadJitter;
     y = BASE_CENTER_Y + roadDist;
   } else if (gateIndex === 2) {
-    // West Road
     x = BASE_CENTER_X - roadDist;
     y = BASE_CENTER_Y + roadJitter;
   } else {
-    // East Road
     x = BASE_CENTER_X + roadDist;
     y = BASE_CENTER_Y + roadJitter;
   }
 
   let type: ZombieType = 'walker';
   const roll = Math.random();
-  const isBossSpawn = wave >= 3 && index === 0 && wave % 2 === 1;
+  const isBossSpawn = wave >= 2 && index === 0 && wave % 2 === 0;
 
   if (isBossSpawn) {
     type = 'boss';
-  } else if (wave >= 4 && roll < 0.24) {
+  } else if (wave >= 3 && roll < 0.28) {
     type = 'armored';
-  } else if (wave >= 2 && roll < 0.52) {
+  } else if (wave >= 2 && roll < 0.56) {
     type = 'runner';
   }
 
-  const waveScale = 1 + (wave - 1) * 0.22;
-  let hp = Math.round(52 * waveScale);
-  let speed = 1.65 + Math.min(0.9, wave * 0.05);
+  // Harder wave scaling for increased challenge
+  const waveScale = 1 + (wave - 1) * 0.34;
+  let hp = Math.round(68 * waveScale);
+  let speed = 1.85 + Math.min(1.15, wave * 0.065);
   let radius = 16;
-  let damage = Math.round(12 + wave * 2.2);
-  let rewardCash = Math.round(14 + wave * 3);
-  let rewardScrap = Math.random() < 0.55 ? 2 : 1;
+  let damage = Math.round(16 + wave * 3.2);
+  let rewardCash = Math.round(12 + wave * 2.5);
+  let rewardScrap = Math.random() < 0.48 ? 2 : 1;
 
   if (type === 'runner') {
-    hp = Math.round(38 * waveScale);
-    speed = 2.55 + Math.min(1.1, wave * 0.06);
+    hp = Math.round(48 * waveScale);
+    speed = 2.8 + Math.min(1.3, wave * 0.075);
     radius = 14;
-    damage = Math.round(10 + wave * 2);
-    rewardCash = Math.round(18 + wave * 3);
+    damage = Math.round(13 + wave * 2.6);
+    rewardCash = Math.round(15 + wave * 2.5);
   } else if (type === 'armored') {
-    hp = Math.round(115 * waveScale);
-    speed = 1.3 + Math.min(0.6, wave * 0.04);
+    hp = Math.round(145 * waveScale);
+    speed = 1.45 + Math.min(0.75, wave * 0.05);
     radius = 18;
-    damage = Math.round(18 + wave * 3);
-    rewardCash = Math.round(30 + wave * 5);
-    rewardScrap = 4;
+    damage = Math.round(24 + wave * 4);
+    rewardCash = Math.round(25 + wave * 4);
+    rewardScrap = 3;
   } else if (type === 'boss') {
-    hp = Math.round(340 * waveScale);
-    speed = 1.18 + Math.min(0.5, wave * 0.03);
+    hp = Math.round(440 * waveScale);
+    speed = 1.32 + Math.min(0.6, wave * 0.04);
     radius = 24;
-    damage = Math.round(32 + wave * 5);
-    rewardCash = Math.round(95 + wave * 18);
-    rewardScrap = 12;
+    damage = Math.round(42 + wave * 6.5);
+    rewardCash = Math.round(80 + wave * 14);
+    rewardScrap = 9;
   }
 
   return {
@@ -335,8 +321,8 @@ export default function TacticalSurvivalScreen() {
   const [hasActiveSave, setHasActiveSave] = useState<boolean>(false);
   const [wave, setWave] = useState<number>(1);
   const [wavePhase, setWavePhase] = useState<'combat' | 'polygon'>('polygon');
-  const [cash, setCash] = useState<number>(100);
-  const [scrap, setScrap] = useState<number>(12);
+  const [cash, setCash] = useState<number>(50);
+  const [scrap, setScrap] = useState<number>(6);
   const [totalKills, setTotalKills] = useState<number>(0);
   const [equippedWeaponId, setEquippedWeaponId] = useState<WeaponId>('pistol');
   const [weapons, setWeapons] = useState<Record<WeaponId, WeaponProgress>>(
@@ -359,7 +345,7 @@ export default function TacticalSurvivalScreen() {
 
   const playerPosRef = useRef<{ x: number; y: number }>({
     x: BASE_CENTER_X,
-    y: BASE_CENTER_Y + 42,
+    y: BASE_CENTER_Y + 54,
   });
   const playerAimDegRef = useRef<number>(0);
   const playerWalkPhaseRef = useRef<number>(0);
@@ -374,9 +360,9 @@ export default function TacticalSurvivalScreen() {
   const lootDropsRef = useRef<LootDrop[]>([]);
   const popupsRef = useRef<FloatingPopup[]>([]);
   const practiceTargetsRef = useRef<PracticeTarget[]>([
-    { id: 't-1', x: BASE_CENTER_X - 75, y: BASE_CENTER_Y - 135, hitTimer: 0 },
-    { id: 't-2', x: BASE_CENTER_X, y: BASE_CENTER_Y - 155, hitTimer: 0 },
-    { id: 't-3', x: BASE_CENTER_X + 75, y: BASE_CENTER_Y - 135, hitTimer: 0 },
+    { id: 't-1', x: BASE_CENTER_X - 110, y: BASE_CENTER_Y - 210, hitTimer: 0 },
+    { id: 't-2', x: BASE_CENTER_X, y: BASE_CENTER_Y - 235, hitTimer: 0 },
+    { id: 't-3', x: BASE_CENTER_X + 110, y: BASE_CENTER_Y - 210, hitTimer: 0 },
   ]);
 
   const joystickRef = useRef<{
@@ -423,6 +409,7 @@ export default function TacticalSurvivalScreen() {
   maxHpRef.current = maxHp;
   const toSpawnRef = useRef(zombiesRemainingToSpawn);
   toSpawnRef.current = zombiesRemainingToSpawn;
+  const isLoadedRef = useRef(false);
 
   const isPausedRef = useRef(false);
   isPausedRef.current =
@@ -430,6 +417,7 @@ export default function TacticalSurvivalScreen() {
 
   const saveCurrentProgress = useCallback(
     (overrideWave?: number, overrideCash?: number, overrideScrap?: number) => {
+      if (!isLoadedRef.current) return;
       const payload: SaveGameData = {
         hasActiveSave: true,
         wave: overrideWave ?? waveRef.current,
@@ -450,13 +438,15 @@ export default function TacticalSurvivalScreen() {
     []
   );
 
+  // Load Saved Game on Startup & Auto-Resume right on the saved wave!
   useEffect(() => {
     loadSavedGame().then((saved) => {
       if (saved) {
-        setHasActiveSave(Boolean(saved.hasActiveSave));
+        const hasSave = Boolean(saved.hasActiveSave || (saved.wave && saved.wave > 1));
+        setHasActiveSave(hasSave);
         setWave(saved.wave || 1);
-        setCash(saved.cash ?? 100);
-        setScrap(saved.scrap ?? 12);
+        setCash(saved.cash ?? 50);
+        setScrap(saved.scrap ?? 6);
         setTotalKills(saved.totalKills ?? 0);
         setEquippedWeaponId(saved.equippedWeaponId || 'pistol');
         setWeapons(saved.weapons || INITIAL_WEAPONS_STATE);
@@ -466,9 +456,25 @@ export default function TacticalSurvivalScreen() {
         setSettings(saved.settings || DEFAULT_SETTINGS);
         const restoredMaxHp = 100 + ((saved.skills?.maxHpLevel || 1) - 1) * 35;
         setPlayerHp(restoredMaxHp);
+
+        // Automatically resume at the saved wave when reopening the app
+        if (hasSave) {
+          setShowMainMenu(false);
+        }
       }
+      isLoadedRef.current = true;
     });
   }, []);
+
+  // Auto-save whenever the user backgrounds, switches apps, or closes the app on iPhone!
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        saveCurrentProgress();
+      }
+    });
+    return () => subscription.remove();
+  }, [saveCurrentProgress]);
 
   useEffect(() => {
     Gyroscope.setUpdateInterval(60);
@@ -504,10 +510,10 @@ export default function TacticalSurvivalScreen() {
       if (settingsRef.current.hapticsEnabled) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       }
-      const totalCount = 6 + targetWaveNumber * 4;
+      const totalCount = 8 + targetWaveNumber * 5;
       const initialBatch = Math.min(
         totalCount,
-        5 + Math.floor(targetWaveNumber / 2)
+        6 + Math.floor(targetWaveNumber / 2)
       );
       const initialZombies: ZombieEntity[] = [];
       for (let i = 0; i < initialBatch; i++) {
@@ -518,6 +524,7 @@ export default function TacticalSurvivalScreen() {
       setWave(targetWaveNumber);
       setWavePhase('combat');
       setPlayerHp(maxHpRef.current);
+      saveCurrentProgress(targetWaveNumber);
       addPopup(
         `ВОЛНА ${targetWaveNumber}`,
         COLORS.accentAmber,
@@ -525,7 +532,7 @@ export default function TacticalSurvivalScreen() {
         playerPosRef.current.y - 40
       );
     },
-    [addPopup]
+    [addPopup, saveCurrentProgress]
   );
 
   useEffect(() => {
@@ -535,6 +542,11 @@ export default function TacticalSurvivalScreen() {
     const step = () => {
       tick++;
 
+      // Periodic auto-save every 4 seconds during active play
+      if (tick % 240 === 0 && !isPausedRef.current) {
+        saveCurrentProgress();
+      }
+
       if (!isPausedRef.current) {
         const pPos = playerPosRef.current;
         const sk = skillsRef.current;
@@ -542,9 +554,8 @@ export default function TacticalSurvivalScreen() {
         const bStage = baseStageRef.current;
         const baseDef = BASE_STAGES[bStage] || BASE_STAGES[0];
 
-        // 1. Player Movement with Wall & Forest Tree Collision
         const moveSpeed =
-          (3.8 + (sk.speedLevel - 1) * 0.3) * stg.joystickSensitivity;
+          (3.9 + (sk.speedLevel - 1) * 0.32) * stg.joystickSensitivity;
         if (joystickRef.current.active) {
           const vx = joystickRef.current.dx * moveSpeed;
           const vy = joystickRef.current.dy * moveSpeed;
@@ -575,8 +586,8 @@ export default function TacticalSurvivalScreen() {
         if (
           wavePhaseRef.current === 'combat' &&
           toSpawnRef.current > 0 &&
-          tick % 55 === 0 &&
-          zombiesRef.current.length < 22
+          tick % 48 === 0 &&
+          zombiesRef.current.length < 26
         ) {
           zombiesRef.current.push(
             createZombieForWave(waveRef.current, toSpawnRef.current)
@@ -675,7 +686,7 @@ export default function TacticalSurvivalScreen() {
           now - lastTurretShotTimeRef.current >= baseDef.turretFireMs
         ) {
           let closestToBase: ZombieEntity | null = null;
-          let minBaseDist = 480;
+          let minBaseDist = 640;
           for (const z of zombiesRef.current) {
             const d = Math.hypot(z.x - BASE_CENTER_X, z.y - BASE_CENTER_Y);
             if (d < minBaseDist) {
@@ -700,11 +711,11 @@ export default function TacticalSurvivalScreen() {
               id: `tb-${now}-${Math.random()}`,
               x: BASE_CENTER_X + Math.cos(tRad) * 20,
               y: BASE_CENTER_Y + Math.sin(tRad) * 20,
-              vx: Math.cos(tRad) * 17,
-              vy: Math.sin(tRad) * 17,
+              vx: Math.cos(tRad) * 18,
+              vy: Math.sin(tRad) * 18,
               damage: turretDmg,
               pierceLeft: 1,
-              life: 32,
+              life: 40,
               color: COLORS.accentCyan,
               fromTurret: true,
             });
@@ -718,7 +729,6 @@ export default function TacticalSurvivalScreen() {
           b.life--;
           if (b.life <= 0) continue;
 
-          // Non-turret bullets stop if they hit the solid stone walls of the courtyard
           if (!b.fromTurret && isBulletBlockedByWall(b.x, b.y)) {
             continue;
           }
@@ -777,9 +787,8 @@ export default function TacticalSurvivalScreen() {
           if (pt.hitTimer > 0) pt.hitTimer--;
         }
 
-        // 5. Update Zombies with Gate Pathfinding & Wall/Watchtower Collisions
         const survivingZombies: ZombieEntity[] = [];
-        const scavengeMult = 1 + sk.scavengeLevel * 0.15;
+        const scavengeMult = 1 + sk.scavengeLevel * 0.12;
         const playerDistFromBase = Math.hypot(
           pPos.x - BASE_CENTER_X,
           pPos.y - BASE_CENTER_Y
@@ -787,10 +796,10 @@ export default function TacticalSurvivalScreen() {
         const playerInsideCourtyard = playerDistFromBase < WALL_MID_R;
 
         const gates = [
-          { x: BASE_CENTER_X, y: BASE_CENTER_Y - 365 },
-          { x: BASE_CENTER_X, y: BASE_CENTER_Y + 365 },
-          { x: BASE_CENTER_X - 365, y: BASE_CENTER_Y },
-          { x: BASE_CENTER_X + 365, y: BASE_CENTER_Y },
+          { x: BASE_CENTER_X, y: BASE_CENTER_Y - 640 },
+          { x: BASE_CENTER_X, y: BASE_CENTER_Y + 640 },
+          { x: BASE_CENTER_X - 640, y: BASE_CENTER_Y },
+          { x: BASE_CENTER_X + 640, y: BASE_CENTER_Y },
         ];
 
         for (const z of zombiesRef.current) {
@@ -814,20 +823,18 @@ export default function TacticalSurvivalScreen() {
           if (z.attackCooldown > 0) z.attackCooldown--;
           z.walkPhase += 0.22;
 
-          // Determine Zombie Steering Target (Guide through nearest Gate if separated by Courtyard Wall)
           const zDxFromBase = z.x - BASE_CENTER_X;
           const zDyFromBase = z.y - BASE_CENTER_Y;
           const zDistFromBase = Math.hypot(zDxFromBase, zDyFromBase);
           const zInsideCourtyard = zDistFromBase < WALL_MID_R;
           const zAlignedWithGate =
-            Math.abs(zDxFromBase) < GATE_HALF_WIDTH - 12 ||
-            Math.abs(zDyFromBase) < GATE_HALF_WIDTH - 12;
+            Math.abs(zDxFromBase) < GATE_HALF_WIDTH - 16 ||
+            Math.abs(zDyFromBase) < GATE_HALF_WIDTH - 16;
 
           let steerX = pPos.x;
           let steerY = pPos.y;
 
           if (playerInsideCourtyard !== zInsideCourtyard && !zAlignedWithGate) {
-            // Find nearest gate archway to pass through the courtyard wall
             let bestGate = gates[0];
             let bestGateDist = 99999;
             for (const g of gates) {
@@ -858,7 +865,6 @@ export default function TacticalSurvivalScreen() {
           z.x = resolvedZ.x;
           z.y = resolvedZ.y;
 
-          // Watchtower Safe Perimeter Barrier (Zombies cannot enter safeRadius!)
           if (baseDef.safeRadius > 0) {
             const distFromBase = Math.hypot(
               z.x - BASE_CENTER_X,
@@ -877,10 +883,10 @@ export default function TacticalSurvivalScreen() {
 
           const newDistToPlayer = Math.hypot(pPos.x - z.x, pPos.y - z.y);
           if (newDistToPlayer < z.radius + 15 && z.attackCooldown <= 0) {
-            z.attackCooldown = 42;
-            const armorReduction = Math.min(0.75, sk.armorLevel * 0.08);
+            z.attackCooldown = 40;
+            const armorReduction = Math.min(0.7, sk.armorLevel * 0.07);
             const finalDmg = Math.max(
-              2,
+              3,
               Math.round(z.damage * (1 - armorReduction))
             );
 
@@ -895,6 +901,7 @@ export default function TacticalSurvivalScreen() {
             setPlayerHp((prevHp) => {
               const nextHp = prevHp - finalDmg;
               if (nextHp <= 0) {
+                saveCurrentProgress();
                 setShowReviveModal(true);
                 return 0;
               }
@@ -906,7 +913,7 @@ export default function TacticalSurvivalScreen() {
         }
         zombiesRef.current = survivingZombies;
 
-        const pickupRadius = 78 + sk.scavengeLevel * 12;
+        const pickupRadius = 82 + sk.scavengeLevel * 12;
         const remainingLoot: LootDrop[] = [];
         for (const l of lootDropsRef.current) {
           l.life--;
@@ -938,8 +945,8 @@ export default function TacticalSurvivalScreen() {
           toSpawnRef.current <= 0 &&
           zombiesRef.current.length === 0
         ) {
-          let bonusCash = 35 + waveRef.current * 15;
-          let bonusScrap = 5 + waveRef.current * 2;
+          let bonusCash = 28 + waveRef.current * 12;
+          let bonusScrap = 4 + waveRef.current * 2;
           for (const l of lootDropsRef.current) {
             bonusCash += l.cash;
             bonusScrap += l.scrap;
@@ -1038,6 +1045,7 @@ export default function TacticalSurvivalScreen() {
       if (settings.hapticsEnabled) {
         Haptics.selectionAsync().catch(() => {});
       }
+      setTimeout(() => saveCurrentProgress(wave, cash, scrap), 30);
       return;
     }
 
@@ -1088,7 +1096,7 @@ export default function TacticalSurvivalScreen() {
     if (!def) return;
     const currLvl = skills[skillKey] || 0;
     if (currLvl >= def.maxLevel) return;
-    const cost = Math.round(def.baseCost * Math.pow(1.38, currLvl));
+    const cost = Math.round(def.baseCost * Math.pow(1.48, currLvl));
     if (cash >= cost) {
       const nextCash = cash - cost;
       setCash(nextCash);
@@ -1132,8 +1140,8 @@ export default function TacticalSurvivalScreen() {
   };
 
   const handleUpgradeTurrets = () => {
-    const costCash = 140 + turretUpgradeLevel * 95;
-    const costScrap = 18 + turretUpgradeLevel * 12;
+    const costCash = 320 + turretUpgradeLevel * 220;
+    const costScrap = 40 + turretUpgradeLevel * 28;
     if (cash >= costCash && scrap >= costScrap) {
       const nextCash = cash - costCash;
       const nextScrap = scrap - costScrap;
@@ -1155,7 +1163,7 @@ export default function TacticalSurvivalScreen() {
     zombiesRef.current = [];
     bulletsRef.current = [];
     setZombiesRemainingToSpawn(0);
-    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 42 };
+    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 54 };
     setPlayerHp(maxHp);
     setShowReviveModal(false);
     saveCurrentProgress(targetWave, nextCash, scrap);
@@ -1164,8 +1172,8 @@ export default function TacticalSurvivalScreen() {
   const handleNewGame = () => {
     setWave(1);
     setWavePhase('polygon');
-    setCash(100);
-    setScrap(12);
+    setCash(50);
+    setScrap(6);
     setTotalKills(0);
     setEquippedWeaponId('pistol');
     setWeapons(INITIAL_WEAPONS_STATE);
@@ -1176,12 +1184,11 @@ export default function TacticalSurvivalScreen() {
     zombiesRef.current = [];
     bulletsRef.current = [];
     lootDropsRef.current = [];
-    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 42 };
+    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 54 };
     setShowMainMenu(false);
-    setTimeout(() => saveCurrentProgress(1, 100, 12), 50);
+    setTimeout(() => saveCurrentProgress(1, 50, 6), 50);
   };
 
-  // Clamp Camera strictly within the 1600x1600 painted map illustration!
   const gyroOffsetX = settings.gyroEnabled
     ? Math.max(-12, Math.min(12, gyroRef.current.y * 9))
     : 0;
@@ -1202,7 +1209,7 @@ export default function TacticalSurvivalScreen() {
   const playerInSafeZone =
     currentBaseDef.safeRadius > 0 &&
     distFromBaseCenter <= currentBaseDef.safeRadius;
-  const playerNearPolygon = distFromBaseCenter <= 240;
+  const playerNearPolygon = distFromBaseCenter <= 380;
 
   const currentWeaponDef =
     WEAPON_DEFS.find((w) => w.id === equippedWeaponId) || WEAPON_DEFS[0];
@@ -1214,7 +1221,7 @@ export default function TacticalSurvivalScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Full-Map Hand-Painted 2.5D Survival Outpost World (Covers 100% of MAP_SIZE) */}
+      {/* Large 2800x2800 Hand-Painted 2.5D Survival Outpost World */}
       <View style={styles.arenaContainer} {...panResponder.panHandlers}>
         <Image
           source={MAP_ART_SOURCE}
@@ -1234,8 +1241,8 @@ export default function TacticalSurvivalScreen() {
           style={[
             styles.baseCompoundWrapper,
             {
-              left: BASE_CENTER_X - camX - 260,
-              top: BASE_CENTER_Y - camY - 260,
+              left: BASE_CENTER_X - camX - 380,
+              top: BASE_CENTER_Y - camY - 380,
             },
           ]}
         >
@@ -1248,7 +1255,6 @@ export default function TacticalSurvivalScreen() {
 
         {/* Standing Dummy Targets, Loot Drops & Bullets Layer */}
         <Svg width={SCREEN_W} height={SCREEN_H} style={StyleSheet.absoluteFill}>
-          {/* 2.5D Standing Humanoid Practice Dummy Targets on the Stone Polygon */}
           {practiceTargetsRef.current.map((pt) => {
             const sx = pt.x - camX;
             const sy = pt.y - camY;
@@ -1301,7 +1307,6 @@ export default function TacticalSurvivalScreen() {
             );
           })}
 
-          {/* Dropped Loot (Gold Coins & Blue Weapon Parts Cases) */}
           {lootDropsRef.current.map((l) => {
             const sx = l.x - camX;
             const sy = l.y - camY;
@@ -1336,7 +1341,6 @@ export default function TacticalSurvivalScreen() {
             );
           })}
 
-          {/* Bullets & Tracers */}
           {bulletsRef.current.map((b) => {
             const sx = b.x - camX;
             const sy = b.y - camY;
@@ -1354,7 +1358,6 @@ export default function TacticalSurvivalScreen() {
             );
           })}
 
-          {/* Floating Joystick */}
           {joystickRef.current.active && (
             <>
               <Circle
@@ -1550,7 +1553,7 @@ export default function TacticalSurvivalScreen() {
                 ? `Врагов: ${
                     zombiesRef.current.length + zombiesRemainingToSpawn
                   }`
-                : 'Передышка и подготовка'}
+                : 'Сохранено автоматически'}
             </Text>
             <Text style={styles.baseTagText} numberOfLines={1}>
               {currentBaseDef.title}
@@ -1565,7 +1568,7 @@ export default function TacticalSurvivalScreen() {
               onPress={() => {
                 playerPosRef.current = {
                   x: BASE_CENTER_X,
-                  y: BASE_CENTER_Y + 42,
+                  y: BASE_CENTER_Y + 54,
                 };
               }}
               style={styles.returnBasePill}
@@ -1685,8 +1688,8 @@ const styles = StyleSheet.create({
   },
   baseCompoundWrapper: {
     position: 'absolute',
-    width: 520,
-    height: 520,
+    width: 760,
+    height: 760,
   },
   entityBox: {
     position: 'absolute',

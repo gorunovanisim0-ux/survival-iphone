@@ -62,7 +62,7 @@ export const MainMenuOverlay: React.FC<MainMenuOverlayProps> = ({
     <View style={styles.overlay}>
       <View style={styles.panel}>
         <Text style={styles.kicker}>ТАКТИЧЕСКАЯ ОБОРОНА И ПОЛИГОН</Text>
-        <Text style={styles.title}>РУБЕЖ ВЫЖИВАНИЯ</Text>
+        <Text style={styles.title}>ANISIM GAME APP</Text>
         <Text style={styles.subtitle}>
           Держите оборону против волн заражённых, создавайте оружие и укрепляйте военную базу
         </Text>
