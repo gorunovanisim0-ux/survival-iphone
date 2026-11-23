@@ -54,50 +54,74 @@ import { MainMenuOverlay } from '../components/MainMenuOverlay';
 import { loadSavedGame, persistSaveGame } from '../utils/storage';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
-const MAP_ART_SOURCE = require('../../assets/map-outpost.jpg');
 
-// Courtyard Wall & Forest Collision Constants scaled for expansive 2800x2800 illustrated map (1.75x scale)
-const WALL_INNER_R = 546;
-const WALL_OUTER_R = 749;
+// 3x3 Unstretched 1000x1000 Hand-Painted Tiles = 3000x3000 Total Native World
+const TILE_SIZE = 1000;
+const MAP_OUTPOST_SOURCE = require('../../assets/map-outpost.jpg');
+const MAP_ROAD_NS_SOURCE = require('../../assets/map-road-ns.jpg');
+const MAP_FOREST_CORNER_SOURCE = require('../../assets/map-forest-corner.jpg');
+
+// Courtyard Wall Constants at original unstretched 1:1 scale (inside center 1000x1000 tile)
+const WALL_INNER_R = 195;
+const WALL_OUTER_R = 268;
 const WALL_MID_R = (WALL_INNER_R + WALL_OUTER_R) / 2;
-const GATE_HALF_WIDTH = 165;
-const ROAD_HALF_WIDTH = 214;
-const FOREST_RING_R = 901;
+const GATE_HALF_WIDTH = 58;
 
-// Specific Tree, Rock & Prop Circular Colliders scaled to 2800x2800 painted map
-const TREE_AND_ROCK_COLLIDERS: { x: number; y: number; r: number }[] = [
-  // North-West Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X - 665, y: BASE_CENTER_Y - 656, r: 108 },
-  { x: BASE_CENTER_X - 901, y: BASE_CENTER_Y - 411, r: 129 },
-  { x: BASE_CENTER_X - 411, y: BASE_CENTER_Y - 901, r: 122 },
-  { x: BASE_CENTER_X - 980, y: BASE_CENTER_Y - 910, r: 192 },
-  { x: BASE_CENTER_X - 1155, y: BASE_CENTER_Y - 595, r: 148 },
-  { x: BASE_CENTER_X - 595, y: BASE_CENTER_Y - 1155, r: 148 },
+// Build Physical Colliders for Trees, Rocks, Sandbag Checkpoints & Supply Caches across all 9 tiles
+const TREE_AND_ROCK_COLLIDERS: { x: number; y: number; r: number }[] = (() => {
+  const list: { x: number; y: number; r: number }[] = [];
 
-  // North-East Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X + 665, y: BASE_CENTER_Y - 656, r: 108 },
-  { x: BASE_CENTER_X + 901, y: BASE_CENTER_Y - 411, r: 129 },
-  { x: BASE_CENTER_X + 411, y: BASE_CENTER_Y - 901, r: 122 },
-  { x: BASE_CENTER_X + 980, y: BASE_CENTER_Y - 910, r: 192 },
-  { x: BASE_CENTER_X + 1155, y: BASE_CENTER_Y - 595, r: 148 },
-  { x: BASE_CENTER_X + 595, y: BASE_CENTER_Y - 1155, r: 148 },
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const tileCenterX = col * TILE_SIZE + TILE_SIZE / 2;
+      const tileCenterY = row * TILE_SIZE + TILE_SIZE / 2;
+      const isCenterOutpost = row === 1 && col === 1;
+      const isRoadNS = (row === 0 || row === 2) && col === 1;
+      const isRoadEW = row === 1 && (col === 0 || col === 2);
+      const isCornerForest = !isCenterOutpost && !isRoadNS && !isRoadEW;
 
-  // South-West Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X - 665, y: BASE_CENTER_Y + 656, r: 108 },
-  { x: BASE_CENTER_X - 901, y: BASE_CENTER_Y + 411, r: 129 },
-  { x: BASE_CENTER_X - 411, y: BASE_CENTER_Y + 901, r: 122 },
-  { x: BASE_CENTER_X - 980, y: BASE_CENTER_Y + 910, r: 192 },
-  { x: BASE_CENTER_X - 1155, y: BASE_CENTER_Y + 595, r: 148 },
-  { x: BASE_CENTER_X - 595, y: BASE_CENTER_Y + 1155, r: 148 },
+      // 4 Corner Forest Clusters present on every 1000x1000 tile
+      const cornerOffsets = [
+        [-380, -380, 95],
+        [-235, -340, 52],
+        [-340, -235, 52],
+        [380, -380, 95],
+        [235, -340, 52],
+        [340, -235, 52],
+        [-380, 380, 95],
+        [-235, 340, 52],
+        [-340, 235, 52],
+        [380, 380, 95],
+        [235, 340, 52],
+        [340, 235, 52],
+      ];
+      for (const [ox, oy, r] of cornerOffsets) {
+        list.push({ x: tileCenterX + ox, y: tileCenterY + oy, r });
+      }
 
-  // South-East Forest Quadrant Trees & Rocks
-  { x: BASE_CENTER_X + 665, y: BASE_CENTER_Y + 656, r: 108 },
-  { x: BASE_CENTER_X + 901, y: BASE_CENTER_Y + 411, r: 129 },
-  { x: BASE_CENTER_X + 411, y: BASE_CENTER_Y + 901, r: 122 },
-  { x: BASE_CENTER_X + 980, y: BASE_CENTER_Y + 910, r: 192 },
-  { x: BASE_CENTER_X + 1155, y: BASE_CENTER_Y + 595, r: 148 },
-  { x: BASE_CENTER_X + 595, y: BASE_CENTER_Y + 1155, r: 148 },
-];
+      if (isRoadNS) {
+        // Roadside sandbag checkpoint & mossy boulders in North/South road tiles
+        list.push({ x: tileCenterX - 155, y: tileCenterY - 20, r: 62 });
+        list.push({ x: tileCenterX + 175, y: tileCenterY - 145, r: 54 });
+        list.push({ x: tileCenterX + 195, y: tileCenterY + 125, r: 52 });
+      } else if (isRoadEW) {
+        // Rotated roadside sandbag checkpoint & mossy boulders in East/West road tiles
+        list.push({ x: tileCenterX - 20, y: tileCenterY - 155, r: 62 });
+        list.push({ x: tileCenterX - 145, y: tileCenterY + 175, r: 54 });
+        list.push({ x: tileCenterX + 125, y: tileCenterY + 195, r: 52 });
+      } else if (isCornerForest) {
+        // Central overgrown crate & barrel cache + inner pine trees in corner forest tiles
+        list.push({ x: tileCenterX, y: tileCenterY - 10, r: 78 });
+        list.push({ x: tileCenterX - 185, y: tileCenterY - 115, r: 48 });
+        list.push({ x: tileCenterX + 185, y: tileCenterY - 115, r: 48 });
+        list.push({ x: tileCenterX - 145, y: tileCenterY + 150, r: 48 });
+        list.push({ x: tileCenterX + 165, y: tileCenterY + 135, r: 52 });
+      }
+    }
+  }
+
+  return list;
+})();
 
 function resolveMapCollision(
   prevX: number,
@@ -149,26 +173,7 @@ function resolveMapCollision(
     }
   }
 
-  // 2. Outer Forest Tree Line
-  const currDx = x - BASE_CENTER_X;
-  const currDy = y - BASE_CENTER_Y;
-  const currDist = Math.hypot(currDx, currDy) || 0.001;
-  const onCobblestoneRoad =
-    Math.abs(currDx) < ROAD_HALF_WIDTH || Math.abs(currDy) < ROAD_HALF_WIDTH;
-
-  if (!onCobblestoneRoad && currDist > FOREST_RING_R - entityRadius) {
-    if (Math.abs(prevDx) < ROAD_HALF_WIDTH) {
-      x = BASE_CENTER_X + Math.sign(currDx) * (ROAD_HALF_WIDTH - 2);
-    } else if (Math.abs(prevDy) < ROAD_HALF_WIDTH) {
-      y = BASE_CENTER_Y + Math.sign(currDy) * (ROAD_HALF_WIDTH - 2);
-    } else {
-      const maxForestR = FOREST_RING_R - entityRadius;
-      x = BASE_CENTER_X + (currDx / currDist) * maxForestR;
-      y = BASE_CENTER_Y + (currDy / currDist) * maxForestR;
-    }
-  }
-
-  // 3. Individual Trees & Boulders Circular Colliders
+  // 2. Individual Trees, Boulders, Sandbag Checkpoints & Supply Caches across all 9 tiles
   for (const col of TREE_AND_ROCK_COLLIDERS) {
     const cdx = x - col.x;
     const cdy = y - col.y;
@@ -180,12 +185,12 @@ function resolveMapCollision(
     }
   }
 
-  // 4. Central Watchtower Physical Post & Military Village Buildings
+  // 3. Central Watchtower Physical Post & Military Village Buildings
   if (baseStage >= 1) {
     const tdx = x - BASE_CENTER_X;
     const tdy = y - BASE_CENTER_Y;
     const tDist = Math.hypot(tdx, tdy) || 0.001;
-    const towerBaseR = 26 + entityRadius;
+    const towerBaseR = 24 + entityRadius;
     if (tDist < towerBaseR) {
       x = BASE_CENTER_X + (tdx / tDist) * towerBaseR;
       y = BASE_CENTER_Y + (tdy / tDist) * towerBaseR;
@@ -194,8 +199,8 @@ function resolveMapCollision(
 
   if (baseStage >= 3) {
     const buildings = [
-      { x: BASE_CENTER_X - 82, y: BASE_CENTER_Y, r: 32 },
-      { x: BASE_CENTER_X + 82, y: BASE_CENTER_Y, r: 32 },
+      { x: BASE_CENTER_X - 82, y: BASE_CENTER_Y, r: 30 },
+      { x: BASE_CENTER_X + 82, y: BASE_CENTER_Y, r: 30 },
     ];
     for (const b of buildings) {
       const bdx = x - b.x;
@@ -216,7 +221,7 @@ function isBulletBlockedByWall(bx: number, by: number): boolean {
   const dx = bx - BASE_CENTER_X;
   const dy = by - BASE_CENTER_Y;
   const dist = Math.hypot(dx, dy);
-  if (dist > WALL_INNER_R + 10 && dist < WALL_OUTER_R - 10) {
+  if (dist > WALL_INNER_R + 6 && dist < WALL_OUTER_R - 6) {
     const inGate =
       Math.abs(dx) < GATE_HALF_WIDTH || Math.abs(dy) < GATE_HALF_WIDTH;
     if (!inGate) return true;
@@ -232,8 +237,8 @@ function createZombieForWave(wave: number, index: number): ZombieEntity {
   const gateIndex = index % 4;
   let x = BASE_CENTER_X;
   let y = BASE_CENTER_Y;
-  const roadDist = randomBetween(820, 1260);
-  const roadJitter = randomBetween(-125, 125);
+  const roadDist = randomBetween(520, 1280);
+  const roadJitter = randomBetween(-65, 65);
 
   if (gateIndex === 0) {
     x = BASE_CENTER_X + roadJitter;
@@ -261,7 +266,6 @@ function createZombieForWave(wave: number, index: number): ZombieEntity {
     type = 'runner';
   }
 
-  // Harder wave scaling for increased challenge
   const waveScale = 1 + (wave - 1) * 0.34;
   let hp = Math.round(68 * waveScale);
   let speed = 1.85 + Math.min(1.15, wave * 0.065);
@@ -345,7 +349,7 @@ export default function TacticalSurvivalScreen() {
 
   const playerPosRef = useRef<{ x: number; y: number }>({
     x: BASE_CENTER_X,
-    y: BASE_CENTER_Y + 54,
+    y: BASE_CENTER_Y + 38,
   });
   const playerAimDegRef = useRef<number>(0);
   const playerWalkPhaseRef = useRef<number>(0);
@@ -360,9 +364,9 @@ export default function TacticalSurvivalScreen() {
   const lootDropsRef = useRef<LootDrop[]>([]);
   const popupsRef = useRef<FloatingPopup[]>([]);
   const practiceTargetsRef = useRef<PracticeTarget[]>([
-    { id: 't-1', x: BASE_CENTER_X - 110, y: BASE_CENTER_Y - 210, hitTimer: 0 },
-    { id: 't-2', x: BASE_CENTER_X, y: BASE_CENTER_Y - 235, hitTimer: 0 },
-    { id: 't-3', x: BASE_CENTER_X + 110, y: BASE_CENTER_Y - 210, hitTimer: 0 },
+    { id: 't-1', x: BASE_CENTER_X - 65, y: BASE_CENTER_Y - 125, hitTimer: 0 },
+    { id: 't-2', x: BASE_CENTER_X, y: BASE_CENTER_Y - 140, hitTimer: 0 },
+    { id: 't-3', x: BASE_CENTER_X + 65, y: BASE_CENTER_Y - 125, hitTimer: 0 },
   ]);
 
   const joystickRef = useRef<{
@@ -438,11 +442,12 @@ export default function TacticalSurvivalScreen() {
     []
   );
 
-  // Load Saved Game on Startup & Auto-Resume right on the saved wave!
   useEffect(() => {
     loadSavedGame().then((saved) => {
       if (saved) {
-        const hasSave = Boolean(saved.hasActiveSave || (saved.wave && saved.wave > 1));
+        const hasSave = Boolean(
+          saved.hasActiveSave || (saved.wave && saved.wave > 1)
+        );
         setHasActiveSave(hasSave);
         setWave(saved.wave || 1);
         setCash(saved.cash ?? 50);
@@ -457,7 +462,6 @@ export default function TacticalSurvivalScreen() {
         const restoredMaxHp = 100 + ((saved.skills?.maxHpLevel || 1) - 1) * 35;
         setPlayerHp(restoredMaxHp);
 
-        // Automatically resume at the saved wave when reopening the app
         if (hasSave) {
           setShowMainMenu(false);
         }
@@ -466,7 +470,6 @@ export default function TacticalSurvivalScreen() {
     });
   }, []);
 
-  // Auto-save whenever the user backgrounds, switches apps, or closes the app on iPhone!
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'background' || nextState === 'inactive') {
@@ -542,7 +545,6 @@ export default function TacticalSurvivalScreen() {
     const step = () => {
       tick++;
 
-      // Periodic auto-save every 4 seconds during active play
       if (tick % 240 === 0 && !isPausedRef.current) {
         saveCurrentProgress();
       }
@@ -686,7 +688,7 @@ export default function TacticalSurvivalScreen() {
           now - lastTurretShotTimeRef.current >= baseDef.turretFireMs
         ) {
           let closestToBase: ZombieEntity | null = null;
-          let minBaseDist = 640;
+          let minBaseDist = 480;
           for (const z of zombiesRef.current) {
             const d = Math.hypot(z.x - BASE_CENTER_X, z.y - BASE_CENTER_Y);
             if (d < minBaseDist) {
@@ -715,7 +717,7 @@ export default function TacticalSurvivalScreen() {
               vy: Math.sin(tRad) * 18,
               damage: turretDmg,
               pierceLeft: 1,
-              life: 40,
+              life: 36,
               color: COLORS.accentCyan,
               fromTurret: true,
             });
@@ -796,10 +798,10 @@ export default function TacticalSurvivalScreen() {
         const playerInsideCourtyard = playerDistFromBase < WALL_MID_R;
 
         const gates = [
-          { x: BASE_CENTER_X, y: BASE_CENTER_Y - 640 },
-          { x: BASE_CENTER_X, y: BASE_CENTER_Y + 640 },
-          { x: BASE_CENTER_X - 640, y: BASE_CENTER_Y },
-          { x: BASE_CENTER_X + 640, y: BASE_CENTER_Y },
+          { x: BASE_CENTER_X, y: BASE_CENTER_Y - 230 },
+          { x: BASE_CENTER_X, y: BASE_CENTER_Y + 230 },
+          { x: BASE_CENTER_X - 230, y: BASE_CENTER_Y },
+          { x: BASE_CENTER_X + 230, y: BASE_CENTER_Y },
         ];
 
         for (const z of zombiesRef.current) {
@@ -828,8 +830,8 @@ export default function TacticalSurvivalScreen() {
           const zDistFromBase = Math.hypot(zDxFromBase, zDyFromBase);
           const zInsideCourtyard = zDistFromBase < WALL_MID_R;
           const zAlignedWithGate =
-            Math.abs(zDxFromBase) < GATE_HALF_WIDTH - 16 ||
-            Math.abs(zDyFromBase) < GATE_HALF_WIDTH - 16;
+            Math.abs(zDxFromBase) < GATE_HALF_WIDTH - 10 ||
+            Math.abs(zDyFromBase) < GATE_HALF_WIDTH - 10;
 
           let steerX = pPos.x;
           let steerY = pPos.y;
@@ -1163,7 +1165,7 @@ export default function TacticalSurvivalScreen() {
     zombiesRef.current = [];
     bulletsRef.current = [];
     setZombiesRemainingToSpawn(0);
-    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 54 };
+    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 38 };
     setPlayerHp(maxHp);
     setShowReviveModal(false);
     saveCurrentProgress(targetWave, nextCash, scrap);
@@ -1184,7 +1186,7 @@ export default function TacticalSurvivalScreen() {
     zombiesRef.current = [];
     bulletsRef.current = [];
     lootDropsRef.current = [];
-    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 54 };
+    playerPosRef.current = { x: BASE_CENTER_X, y: BASE_CENTER_Y + 38 };
     setShowMainMenu(false);
     setTimeout(() => saveCurrentProgress(1, 50, 6), 50);
   };
@@ -1209,7 +1211,7 @@ export default function TacticalSurvivalScreen() {
   const playerInSafeZone =
     currentBaseDef.safeRadius > 0 &&
     distFromBaseCenter <= currentBaseDef.safeRadius;
-  const playerNearPolygon = distFromBaseCenter <= 380;
+  const playerNearPolygon = distFromBaseCenter <= 240;
 
   const currentWeaponDef =
     WEAPON_DEFS.find((w) => w.id === equippedWeaponId) || WEAPON_DEFS[0];
@@ -1221,19 +1223,56 @@ export default function TacticalSurvivalScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Large 2800x2800 Hand-Painted 2.5D Survival Outpost World */}
+      {/* 3x3 Grid of Unstretched 1000x1000 Hand-Painted Tiles (3000x3000 Native World) */}
       <View style={styles.arenaContainer} {...panResponder.panHandlers}>
-        <Image
-          source={MAP_ART_SOURCE}
-          resizeMode="cover"
-          style={[
-            styles.mapArtImage,
-            {
-              left: -camX,
-              top: -camY,
-            },
-          ]}
-        />
+        {[0, 1, 2].map((row) =>
+          [0, 1, 2].map((col) => {
+            const tileLeft = col * TILE_SIZE - camX;
+            const tileTop = row * TILE_SIZE - camY;
+            if (
+              tileLeft < -TILE_SIZE ||
+              tileLeft > SCREEN_W ||
+              tileTop < -TILE_SIZE ||
+              tileTop > SCREEN_H
+            ) {
+              return null;
+            }
+
+            const isCenter = row === 1 && col === 1;
+            const isRoadNS = (row === 0 || row === 2) && col === 1;
+            const isRoadEW = row === 1 && (col === 0 || col === 2);
+
+            const source = isCenter
+              ? MAP_OUTPOST_SOURCE
+              : isRoadNS || isRoadEW
+              ? MAP_ROAD_NS_SOURCE
+              : MAP_FOREST_CORNER_SOURCE;
+
+            const rotation = isRoadEW
+              ? col === 0
+                ? '-90deg'
+                : '90deg'
+              : row === 2 && col === 1
+              ? '180deg'
+              : '0deg';
+
+            return (
+              <Image
+                key={`tile-${row}-${col}`}
+                source={source}
+                resizeMode="cover"
+                style={[
+                  styles.mapTileImage,
+                  {
+                    left: tileLeft,
+                    top: tileTop,
+                    transform: [{ rotate: rotation }],
+                  },
+                ]}
+              />
+            );
+          })
+        )}
 
         {/* Central Watchtower, Military Village Buildings, Auto-Turrets & Safe Dome Overlay */}
         <View
@@ -1241,8 +1280,8 @@ export default function TacticalSurvivalScreen() {
           style={[
             styles.baseCompoundWrapper,
             {
-              left: BASE_CENTER_X - camX - 380,
-              top: BASE_CENTER_Y - camY - 380,
+              left: BASE_CENTER_X - camX - 260,
+              top: BASE_CENTER_Y - camY - 260,
             },
           ]}
         >
@@ -1568,7 +1607,7 @@ export default function TacticalSurvivalScreen() {
               onPress={() => {
                 playerPosRef.current = {
                   x: BASE_CENTER_X,
-                  y: BASE_CENTER_Y + 54,
+                  y: BASE_CENTER_Y + 38,
                 };
               }}
               style={styles.returnBasePill}
@@ -1681,15 +1720,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#172816',
   },
-  mapArtImage: {
+  mapTileImage: {
     position: 'absolute',
-    width: MAP_SIZE,
-    height: MAP_SIZE,
+    width: TILE_SIZE,
+    height: TILE_SIZE,
   },
   baseCompoundWrapper: {
     position: 'absolute',
-    width: 760,
-    height: 760,
+    width: 520,
+    height: 520,
   },
   entityBox: {
     position: 'absolute',

@@ -8,7 +8,7 @@ import {
   WeaponProgress,
 } from '../types/game';
 
-export const MAP_SIZE = 2800;
+export const MAP_SIZE = 3000;
 export const BASE_CENTER_X = MAP_SIZE / 2;
 export const BASE_CENTER_Y = MAP_SIZE / 2;
 
@@ -214,7 +214,7 @@ export const BASE_STAGES: BaseStageDef[] = [
     description: 'Возводит вышку со снайпером и барьерным полем: пока вы стоите у вышки, заражённые не могут подойти вплотную.',
     cashCost: 650,
     scrapCost: 75,
-    safeRadius: 165,
+    safeRadius: 118,
     turretCount: 1,
     turretDamage: 36,
     turretFireMs: 680,
@@ -226,7 +226,7 @@ export const BASE_STAGES: BaseStageDef[] = [
     description: 'Расширяет безопасную зону вокруг вышки и устанавливает две скорострельные турели по углам.',
     cashCost: 1550,
     scrapCost: 180,
-    safeRadius: 225,
+    safeRadius: 155,
     turretCount: 2,
     turretDamage: 52,
     turretFireMs: 500,
@@ -238,7 +238,7 @@ export const BASE_STAGES: BaseStageDef[] = [
     description: 'Полноценная военная база с широким защитным рубежом, четырьмя тяжёлыми турелями и прожекторами.',
     cashCost: 3100,
     scrapCost: 360,
-    safeRadius: 285,
+    safeRadius: 192,
     turretCount: 4,
     turretDamage: 74,
     turretFireMs: 380,
